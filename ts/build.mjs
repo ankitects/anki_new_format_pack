@@ -1,8 +1,9 @@
-const fs = require("fs");
-const { build } = require("esbuild");
-const sveltePreprocess = require("svelte-preprocess");
-const sveltePlugin = require("esbuild-svelte");
-const sassPlugin = require("esbuild-sass-plugin").default;
+import * as fs from "fs";
+import { env } from "process";
+import * as esbuild from "esbuild";
+import sveltePlugin from "esbuild-svelte";
+import sveltePreprocess from "svelte-preprocess";
+import { sassPlugin } from "esbuild-sass-plugin";
 
 for (const dir of ["../dist", "../dist/web"]) {
     if (!fs.existsSync(dir)) {
@@ -10,26 +11,9 @@ for (const dir of ["../dist", "../dist/web"]) {
     }
 }
 
-const production = process.env.NODE_ENV === "production";
-const development = process.env.NODE_ENV === "development";
+const production = env.NODE_ENV === "production";
+const development = env.NODE_ENV === "development";
 
-const watch = development
-    ? {
-          onRebuild(error) {
-              console.timeLog;
-
-              if (error) {
-                  console.error(
-                      new Date(),
-                      "esbuild: build failed:",
-                      error.getMessage(),
-                  );
-              } else {
-                  console.log(new Date(), "esbuild: build succeeded");
-              }
-          },
-      }
-    : false;
 
 /**
  * This should point to all entry points for JS add-ons.
@@ -51,7 +35,6 @@ const options = {
     treeShaking: production,
     sourcemap: !production,
     pure: production ? ["console.log", "console.time", "console.timeEnd"] : [],
-    watch,
     external: ["svelte", "anki"],
     plugins: [
         sveltePlugin({
@@ -69,11 +52,13 @@ const options = {
     },
 };
 
-build(options).catch((err) => {
-    console.error(err);
-    process.exit(1);
-});
+const context = await esbuild.context(options);
 
-if (watch) {
+if (development) {
     console.log("Watching for changes...");
+    await context.watch();
+}
+else {
+    await context.rebuild();
+    context.dispose();
 }
